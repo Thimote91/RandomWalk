@@ -1,6 +1,7 @@
 import Mathlib.Combinatorics.SimpleGraph.Basic
 import Mathlib.Combinatorics.SimpleGraph.Connectivity.Connected
 import Mathlib.Combinatorics.SimpleGraph.Metric
+import Mathlib.Combinatorics.SimpleGraph.Diam
 import Mathlib.Topology.Algebra.InfiniteSum.Real
 import Mathlib.Topology.Algebra.InfiniteSum.Order
 import Mathlib.Topology.Algebra.InfiniteSum.Basic
@@ -94,7 +95,7 @@ def Istransient (G : WeightedGraph V) : Prop :=
 def Ball (G : WeightedGraph V) (x : V) (R : ℕ) : Set V :=
   {y : V | G.graph.dist x y < R}
 
-theorem refBall [Countable V] :
+theorem refBall :
     ∀ x : V, ∀ R : ℕ, R > 0 → x ∈ Ball G x R := by
   intro x R hR
   simp [Ball, hR]
@@ -122,15 +123,24 @@ theorem volumeStrictPos (G : WeightedGraph V) :
 
 theorem volumeGrowth (G : WeightedGraph V) (x : V) :
   ∀ n m : ℕ, n ≤ m → volume G x n ≤ volume G x m := by
-    intro n m hnm
-    have h1 : Ball G x n ⊆ Ball G x m := by
-      intro u hu
-      unfold Ball
-      have h2 : G.graph.dist x u < n := by
-        exact hu
-      exact lt_of_lt_of_le h2 hnm
-    unfold volume Measure
-    sorry
+  intro n m hnm
+  have h1 : Ball G x n ⊆ Ball G x m := by
+    intro u hu
+    unfold Ball
+    have h2 : G.graph.dist x u < n := by
+      exact hu
+    exact lt_of_lt_of_le h2 hnm
+  unfold volume Measure
+  sorry
+
+/- Diamètre d'un graphe -/
+#check SimpleGraph.diam
+
+/- à modifier prendre en compte n < m < G.diam -/
+theorem volumeStrictGrowth (G : WeightedGraph V) : ∀ x : V,
+  ∀ n m : ℕ, n < m → volume G x n < volume G x m := by
+  intro x n m hnm
+  sorry
 
 #check Real.rpow
 
@@ -188,16 +198,57 @@ theorem VCequivVD (G : WeightedGraph V) : VC G ↔ VD G := by
         exact volumeStrictPos G x R hypR
       apply (div_le_iff₀ volpos).mp h2'
   · intro ⟨Dv,⟨h1,h2⟩⟩
+    unfold VC
+    have h :
+      ∀ x : V, ∀ R : ℕ, R > 0 → (∀ y ∈ Ball G x R,
+      volume G x (2*R) / volume G y R < Dv * volume G x (2*R) / volume G y R) := by
+      intro x R hypR y hypy
+      let a := volume G x (2*R)
+      let b := volume G y R
+      let c := volume G x R
+      have hyp2R : 2*R > 0 := by
+        exact mul_pos sorry hypR
+      have apos : a > 0 := volumeStrictPos G x (2*R) hyp2R
+      have bpos : b > 0 := volumeStrictPos G y R hypR
+      have cpos : c > 0 := volumeStrictPos G x R hypR
+      have h2' : a / c ≤ Dv := by
+        have u : a ≤ Dv * c :=
+          h2 x R hypR
+        exact (div_le_iff₀ cpos).2 u
+      have tmp : R < 2*R := by
+        sorry
+      have tmp2 : c < a := by
+        exact volumeStrictGrowth G x R (2*R) tmp
+      have tmp3 : (c / b) < (a / b) := by
+        exact div_lt_div_of_pos_right tmp2 bpos
+      calc
+        a / b = (a / c) * (c / b) := by field_simp
+            _ ≤ Dv * (c / b) :=
+              by exact mul_le_mul_of_nonneg_right h2' (div_nonneg (le_of_lt cpos) (le_of_lt bpos))
+            _  < Dv * (a / b) :=
+              by exact mul_lt_mul_of_pos_left tmp3 h1
     use Dv
     constructor
     · sorry
-    · sorry
+    · intro x R hypR y hypy
+      sorry
 
 lemma p0andVDtowVC (G : WeightedGraph V) : p0 G ∧ VD G → wVC G := by
-  intro ⟨⟨p0,⟨hp1,hp2⟩⟩,⟨Dv,⟨hD1,hD2⟩⟩⟩
   sorry
 
 lemma p0andVDtoaDV (G : WeightedGraph V) : p0 G ∧ VD G → aDV G := by
   intro ⟨⟨p0,⟨hp1,hp2⟩⟩,⟨Dv,⟨hD1,hD2⟩⟩⟩
   sorry
+
+/- The bounded covering principle noted BC -/
+def BC (G : WeightedGraph V) : Prop :=
+  ∃ K : ℕ, ∀ x : V, ∀ R : ℕ,
+    R > 0 →
+    ∃ s : Finset V, s.card = K ∧
+    Ball G x (2* R) ⊆ ⋃ γ ∈ s, Ball G γ R
+
+theorem p0andVDtoBC (G : WeightedGraph V) : (p0 G ∧ VD G) → BC G := by
+    intro ⟨hp0,hVD⟩
+    sorry
+
 end WeightedGraph
